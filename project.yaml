@@ -1,6 +1,4 @@
 compatibilityVersion: naiscript-1.0
-# Generate a fresh UUID for your script: run `uuidgen` or visit https://www.uuidgenerator.net
-id: 23c94605-a1d2-4fec-9a83-81c6d7b5edb4
 name: My Script
 version: 0.1.0
 author: your-username
