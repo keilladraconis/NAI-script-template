@@ -2,6 +2,7 @@
   "name": "my-naiscript",
   "description": "A NovelAI Script",
   "license": "MIT",
+  "packageManager": "npm@11.7.0",
   "scripts": {
     "build": "nibs build",
     "typecheck": "tsc --noEmit",
@@ -9,9 +10,9 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
-    "nibs-cli": "^4.2.0",
-    "prettier": "^3.7.0",
-    "vitest": "^4.0.0"
+    "@types/node": "^25.0.9",
+    "nibs-cli": "^4.2.2",
+    "prettier": "^3.7.4",
+    "vitest": "^4.0.17"
   }
 }
