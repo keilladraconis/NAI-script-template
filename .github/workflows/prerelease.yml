@@ -1,0 +1,84 @@
+name: Pre-Release (Dev Build)
+
+on:
+  push:
+    branches:
+      - "v*-*"
+    paths:
+      - "src/**"
+      - "project.yaml"
+      - "package.json"
+      - "tsconfig.json"
+  pull_request:
+    paths:
+      - "src/**"
+      - "project.yaml"
+      - "package.json"
+      - "tsconfig.json"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-prerelease:
+    # Fork PRs can't create tags/releases in the base repo and must not run with
+    # `contents: write` against untrusted code.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Read version from project.yaml
+        run: echo "VERSION=$(grep "^version:" project.yaml | awk '{print $2}')" >> $GITHUB_ENV
+
+      - name: Determine next dev number
+        id: dev_num
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Filter is scoped to v${VERSION}-dev.N, so the counter resets to 1
+          # whenever project.yaml's version changes.
+          LAST_N=$(git ls-remote --tags origin \
+            | awk '{print $2}' \
+            | sed 's|refs/tags/||' \
+            | grep -E "^v${VERSION}-dev\.[0-9]+$" \
+            | sed "s|^v${VERSION}-dev\.||" \
+            | sort -n \
+            | tail -n1)
+          if [ -z "$LAST_N" ]; then
+            NEXT_N=1
+          else
+            NEXT_N=$((LAST_N + 1))
+          fi
+          FULL_VERSION="${VERSION}-dev.${NEXT_N}"
+          echo "FULL_VERSION=${FULL_VERSION}" >> $GITHUB_ENV
+          echo "Next pre-release: v${FULL_VERSION}"
+
+      - run: npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Create Pre-Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SCRIPT_FILE=$(find dist -maxdepth 1 -name "*.naiscript" | head -1)
+          SCRIPT_NAME=$(basename "$SCRIPT_FILE" .naiscript)
+          VERSIONED_FILE="dist/${SCRIPT_NAME}-v${FULL_VERSION}.naiscript"
+          mv "$SCRIPT_FILE" "$VERSIONED_FILE"
+          gh release create "v${FULL_VERSION}" \
+            "$VERSIONED_FILE" \
+            --title "Pre-release v${FULL_VERSION}" \
+            --prerelease \
+            --generate-notes \
+            --target "${{ github.event.pull_request.head.sha || github.sha }}"
